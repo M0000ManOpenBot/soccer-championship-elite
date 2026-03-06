@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <title>Elite Soccer Game</title>
+ <style>
+ body {
+ margin: 0;
+ background: linear-gradient(to bottom, #0d3d0d, #1a5a1a);
+ font-family: Arial, sans-serif;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ padding: 20px;
+ min-height: 100vh;
+ }
+ 
+ #header {
+ display: flex;
+ gap: 20px;
+ margin-bottom: 10px;
+ align-items: center;
+ }
+ 
+ #gameContainer {
+ border: 3px solid white;
+ border-radius: 15px;
+ box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+ }
+ 
+ .info-panel {
+ background: rgba(0, 0, 0, 0.7);
+ border-radius: 10px;
+ padding: 10px 20px;
+ margin: 5px;
+ }
+ 
+ .info-panel h3 {
+ margin: 0;
+ color: white;
+ font-size: 18px;
+ }
+ 
+ .info-panel div {
+ color: #fff;
+ font-size: 16px;
+ }
+ 
+ .controls {
+ color: white;
+ text-align: center;
+ margin: 10px 0;
+ font-size: 14px;
+ }
+ 
+ .control-section {
+ display: flex;
+ gap: 30px;
+ justify-content: center;
+ }
+ 
+ .control-box {
+ background: rgba(0,0,0,0.3);
+ padding: 10px;
+ border-radius: 8px;
+ }
+ 
+ .difficulty-controls {
+ display: flex;
+ gap: 10px;
+ align-items: center;
+ }
+ 
+ .btn {
+ padding: 8px 16px;
+ border: 2px solid white;
+ background: transparent;
+ color: white;
+ cursor: pointer;
+ border-radius: 20px;
+ font-size: 14px;
+ font-weight: bold;
+ transition: all 0.3s;
+ margin: 0 5px;
+ }
+ 
+ .btn:hover {
+ background: white;
+ color: #0a4d0a;
+ }
+ 
+ .btn.active {
+ background: #444;
+ border-color: #888;
+ }
+ 
+ .btn.primary {
+ background: #4CAF50;
+ border-color: #4CAF50;
+ }
+ 
+ #performance {
+ color: white;
+ font-size: 12px;
+ margin-top: 5px;
+ }
+ </style>
+</head>
+<body>
+ <div id="header">
+ <div class="info-panel">
+ <h3>Team You</h3>
+ <div>Player 1: <span id="score1">0</span></div>
+ </div>
+ <div class="info-panel">
+ <h3>Match</h3>
+ <div>Time: <span id="timer">2:00</span></div>
+ </div>
+ <div class="info-panel">
+ <h3>Team AI</h3>
+ <div>3 Bots: <span id="score2">0</span></div>
+ </div>
+ </div>
+ 
+ <div class="difficulty-controls">
+ Select AI Strategy: 
+ <button class="btn active" onclick="setDifficulty('easy')">🤖 CASUAL</button>
+ <button class="btn" onclick="setDifficulty('normal')">🎯 COMPETITIVE</button>
+ <button class="btn" onclick="setDifficulty('hard')">💀 ELITE</button>
+ <button class="btn primary" onclick="resetGame()">🔁 NEW MATCH</button>
+ </div>
+ 
+ <div id="gameContainer">
+ <canvas id="gameCanvas" width="800" height="400"></canvas>
+ </div>
+ 
+ <div class="controls">
+ <div class="control-section">
+ <div class="control-box">
+ <strong>Controls:</strong><br>
+ WASD: Move<br>
+ Q: Power Shot (6 force)<br>
+ E: Precision Touch (2 force)<br>
+ Space: Restart Game
+ </div>
+ <div class="control-box">
+ <strong>3 AI Opponents:</strong><br>
+ - 🎯 Attacker<br>
+ - ⚡ Support Midfielder<br>
+ - 🛡️ Defensive Cover
+ </div>
+ <div class="control-box">
+ <strong>Performance:</strong><br>
+ FPS: <span id="fps">60</span><br>
+ Difficulty: <span id="ai-mode">Casual</span><br>
+ Ball Physics: Realistic
+ </div>
+ </div>
+ </div>
+
+<script>
+// Elite Soccer Game - Ultimate Version
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Professional field dimensions
+const FIELD_WIDTH = 800, FIELD_HEIGHT = 400;
+const GOAL_WIDTH = 80, GOAL_HEIGHT = 160;
+const PLAYER_SIZE = 12, BALL_SIZE = 8;
+const FRICTION = 0.985;
+
+// Elite difficulty system
+let currentDifficulty = 'easy';
+const aiSettings = {
+ easy: {
+ aiSpeed: 1.8, accuracy: 0.7, aggression: 0.4,
+ defensive: true, formations: 'flexible', description: "Casual"
+ },
+ normal: {
+ aiSpeed: 2.4, accuracy: 0.85, aggression: 0.7,
+ defensive: true, formations: 'aggressive', description: "Competitive"  
+ },
+ hard: {
+ aiSpeed: 3.0, accuracy: 0.95, aggression: 0.9,
+ defensive: false, formations: 'overwhelming', description: "Elite"
+ }
+};
+
+// Advanced game state
+let score = {team1: 0, team2: 0};
+let gameTime = 120; // 2 minute exciting matches
+let matchActive = true;
+let frameCount = 0, lastPerformanceTime = 0;
+
+// Elite physics objects
+const ball = {
+ x: FIELD_WIDTH/2, y: FIELD_HEIGHT/2, vx: 0, vy: 0,
+ lastHitBy: null, collisionDamage: 0
+};
+
+// 3-opponent AI system with roles
+const players = {
+ human: {
+ x: 200, y: 200, vx: 0, vy: 0, speed: 4.5,
+ color: '#ff4444', team: 1, boost: 1, lastShot: 0
+ },
+ ai_attacker: {
+ x: 600, y: 150, vx: 0, vy: 0, speed: 2.5,
+ color: '#4444ff', role: 'attacker', formationOffset: {x: -60, y: -30}
+ },
+ ai_support: {
+ x: 550, y: 250, vx: 0, vy: 0, speed: 2.8,
+ color: '#6666ff', role: 'support', formationOffset: {x: -80, y: 50}
+ },
+ ai_defender: {
+ x: 480, y: 200, vx: 0, vy: 0, speed: 2.2,
+ color: '#8888ff', role: 'defender', formationOffset: {x: -120, y: 0}
+ }
+};
+
+const gameObjects = [players.human, players.ai_attacker, players.ai_support, players.ai_defender];
+
+// Enhanced input system
+const keys = {};
+document.addEventListener('keydown', (e) => {
+ keys[e.code.toLowerCase()] = true;
+ if (e.code.toLowerCase() === 'space') resetGame();
+});
+document.addEventListener('keyup', (e) => keys[e.code.toLowerCase()] = false);
+
+// Elite AI strategy engine
+function calculateAIStrategy(ai, difficulty, ballState) {
+ const settings = aiSettings[difficulty];
+ 
+ // Ball prediction beyond current position
+ function predictBall(steps) {
+ let ax = ballState.x, ay = ballState.y;
+ let avx = ballState.vx, avy = ballState.vy;
+ for (let i = 0; i < steps && (avx || avy); i++) {
+ ax += avx; ay += avy;
+ avx *= FRICTION; avy *= FRICTION;
+ if (ax <= BALL_SIZE || ax >= FIELD_WIDTH-BALL_SIZE) avx = -avx;
+ if (ay <= BALL_SIZE || ay >= FIELD_HEIGHT-BALL_SIZE) avy = -avy;
+ }
+ return {x: ax, y: ay};
+ }
+ 
+ const prediction = predictBall(settings.accuracy > 0.9 ? 8 : 4);
+ 
+ // Elite positioning based on role and difficulty
+ const positioning = {
+ attacker: {
+ targetX: Math.max(560, Math.min(720, prediction.x + ai.formationOffset.x)),
+ targetY: Math.max(50, Math.min(350, prediction.y + ai.formationOffset.y))
+ },
+ support: {
+ targetX: Math.max(520, prediction.x - 30 - ai.speed * settings.aggression),
+ targetY: Math.max(80, prediction.y + Math.sin(Date.now() * 0.01) * 30)
+ },
+ defender: {
+ targetX: Math.max(450, Math.min(580, prediction.x - 100)),
+ targetY: settings.defensive ? 
+ Math.max(100, Math.min(300, prediction.y)) : 
+ Math.max(80, Math.min(320, prediction.y + ai.formationOffset.y))
+ }
+ };
+ 
+ return positioning[ai.role];
+}
+
+// Professional physics
+function applyElitePhysics() {
+ ball.x += ball.vx; ball.y += ball.vy;
+ ball.vx *= FRICTION; ball.vy *= FRICTION;
+ 
+ if (ball.x <= BALL_SIZE || ball.x >= FIELD_WIDTH-BALL_SIZE) ball.vx = -ball.vx;
+ if (ball.y <= BALL_SIZE || ball.y >= FIELD_HEIGHT-BALL_SIZE) ball.vy = -ball.vy;
+ 
+ // Professional goal detection
+ const scoreLeft = ball.x <= GOAL_DEPTH && 
+ ball.y >= FIELD_HEIGHT/2-GOAL_WIDTH/2 && 
+ ball.y <= FIELD_HEIGHT/2+GOAL_WIDTH/2;
+ 
+ const scoreRight = ball.x >= FIELD_WIDTH-GOAL_DEPTH && 
+ ball.y >= FIELD_HEIGHT/2-GOAL_WIDTH/2 && 
+ ball.y <= FIELD_HEIGHT/2+GOAL_WIDTH/2;
+ 
+ if (scoreLeft) { score.team2++; resetForKickoff('left'); }
+ if (scoreRight) { score.team1++; resetForKickoff('right'); }
+ 
+ // Enhanced ball physics with player saturation
+ gameObjects.forEach(player => {
+ const dx = ball.x - player.x;
+ const dy = ball.y - player.y;
+ const distance = Math.sqrt(dx * dx + dy * dy);
+ 
+ if (distance < PLAYER_SIZE + BALL_SIZE) {
+ const angle = Math.atan2(dy, dx);
+ 
+ let forceMultiplier = 1;
+ if (player === players.human) {
+ forceMultiplier = keys['quote'] ? 6 : (keys['keye'] ? 2 : 3.5);
+ } else {
+ forceMultiplier = aiSettings[currentDifficulty].shotPower + Math.random() * 0.5;
+ }
+ 
+ ball.vx = Math.cos(angle) * forceMultiplier;
+ ball.vy = Math.sin(angle) * forceMultiplier;
+ 
+ // Ball gets "charged" with team identity
+ ball.lastHitBy = player.team;
+ }
+ });
+}
+
+// Elite AI movement
+function updateEliteAI() {
+ gameObjects.slice(1).

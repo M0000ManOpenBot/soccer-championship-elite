@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <title>Ultra Soccer Championship</title>
+ <style>
+ body {
+ margin: 0;
+ background: linear-gradient(135deg, #0d2d0d, #1a4a1a, #2d5a2d);
+ font-family: 'Arial', sans-serif;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ padding: 20px;
+ min-height: 100vh;
+ background-attachment: fixed;
+ }
+ 
+ #header {
+ display: flex;
+ gap: 25px;
+ margin-bottom: 15px;
+ align-items: center;
+ }
+ 
+ .team-display {
+ background: linear-gradient(145deg, rgba(0,0,0,0.8), rgba(20,20,20,0.9));
+ border: 2px solid white;
+ border-radius: 15px;
+ padding: 15px 25px;
+ min-width: 120px;
+ text-align: center;
+ }
+ 
+ .team-display h3 {
+ margin: 0 0 5px 0;
+ color: white;
+ font-size: 16px;
+ }
+ 
+ .team-display .score {
+ color: gold;
+ font-size: 28px;
+ font-weight: bold;
+ }
+ 
+ .match-center {
+ background: linear-gradient(145deg, #2a2a2a, #333);
+ border: 3px solid gold;
+ border-radius: 20px;
+ padding: 15px 30px;
+ text-align: center;
+ }
+ 
+ .match-center .time {
+ color: #ffaa00;
+ font-size: 28px;
+ font-weight: bold;
+ font-family: 'Courier New', monospace;
+ }
+ 
+ .difficulty-panel {
+ display: flex;
+ gap: 15px;
+ align-items: center;
+ margin: 10px 0;
+ }
+ 
+ .ui-button {
+ padding: 12px 20px;
+ border: 2px solid white;
+ background: transparent;
+ color: white;
+ cursor: pointer;
+ border-radius: 25px;
+ font-weight: bold;
+ font-size: 14px;
+ transition: all 0.3s ease;
+ min-width: 120px;
+ }
+ 
+ .ui-button:hover {
+ background: white;
+ color: #0d2d0d;
+ transform: translateY(-2px);
+ box-shadow: 0 4px 12px rgba(255,255,255,0.3);
+ }
+ 
+ .ui-button.active {
+ background: linear-gradient(145deg, #4CAF50, #2E7D32);
+ border-color: #4CAF50;
+ color: white;
+ }
+ 
+ .game-container {
+ border: 4px solid white;
+ border-radius: 20px;
+ overflow: hidden;
+ box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+ }
+ 
+ .controls-grid {
+ display: grid;
+ grid-template-columns: 1fr 1fr 1fr;
+ gap: 10px;
+ margin: 15px 0;
+ color: white;
+ font-size: 12px;
+ }
+ 
+ .control-block {
+ background: rgba(0,0,0,0.6);
+ padding: 10px;
+ border-radius: 8px;
+ text-align: center;
+ }
+ 
+ #performance-monitor {
+ color: #ccc;
+ font-size: 11px;
+ text-align: center;
+ margin-top: 5px;
+ }
+ 
+ @media screen and (max-width: 900px) {
+ #gameCanvas {
+ max-width: 95vw;
+ height: auto;
+ }
+ #header {
+ flex-direction: column;
+ gap: 10px;
+ }
+ .difficulty-panel {
+ flex-wrap: wrap;
+ justify-content: center;
+ }
+ }
+ </style>
+</head>
+<body>
+ <div id="header">
+ <div class="team-display">
+ <h3>⚡ YOU</h3>
+ <div class="score" id="score1">0</div>
+ </div>
+ <div class="match-center">
+ <div class="time" id="timer">90"</div>
+ </div>
+ <div class="team-display">
+ <h3>🤖 ELITE AI</h3>
+ <div class="score" id="score2">0</div>
+ </div>
+ </div>
+ 
+ <div class="difficulty-panel">
+ <button class="ui-button active" onclick="setDifficulty('easy')">
+ 🏖️ CASUAL - Relaxed AI Minions
+ </button>
+ <button class="ui-button" onclick="setDifficulty('normal')">
+ 🎯 COMPETITIVE - Tactical 3-Opponent System
+ </button>
+ <button class="ui-button" onclick="setDifficulty('hard')">
+ 💀 CHAMPIONSHIP - Elite AI Formation
+ </button>
+ <button class="ui-button" onclick="resetGame()">
+ 🔁 SUPERCUP FINAL
+ </button>
+ </div>
+ 
+ <div class="game-container">
+ <canvas id="gameCanvas" width="800" height="400" style="background: linear-gradient(135deg, #2a5a2a, #3d7a3d, #4a8a4a);"></canvas>
+ </div>
+ 
+ <div class="controls-grid">
+ <div class="control-block">
+ <strong>MOBILITY</strong><br>
+ WASD Movement<br>
+ Shift Boost (6.5 force)<br>
+ Precision Controls
+ </div>
+ <div class="control-block">
+ <strong>SHOT SYSTEM</strong><br>
+ Q: Power blast (8 force)<br>
+ E: Precision (2.5 force)<br>
+ Mouse advanced controls
+ </div>
+ <div class="control-block">
+ <strong>MATCH ENGINE</strong><br>
+ 90-second benchmarks<br>
+ Real-time FPS counter<br>
+ Championship AI logic
+ </div>
+ </div>
+ 
+ <div id="performance-monitor">
+ FPS: <span id="fps">60</span> • 
+ Mode: <span id="ai-mode">Casual</span> • 
+ Ball Physics: Realistic • 
+ Match Status: <span id="status">ACTIVE</span>
+ </div>
+
+<script>
+// Ultra Soccer Championship - Elite Multi-AI Engine
+class ChampionSoccerGame {
+ constructor() {
+ this.canvas = document.getElementById('gameCanvas');
+ this.ctx = this.canvas.getContext('2d');
+ this.setupElitePhysics();
+ this.initializeChampionshipSystem();
+ }
+ 
+ setupElitePhysics() {
+ this.constants = {
+ FIELD_WIDTH: 800, FIELD_HEIGHT: 400,
+ GOAL_WIDTH: 120, PLAYER_SIZE: 14, BALL_SIZE: 8,
+ GRAVITY: 0.002, FRICTION: 0.985
+ };
+ 
+ this.eliteState = {
+ gameTime: 90, difficulty: 'easy', matchActive: true,
+ score: { you: 0, ai: 0 }, athletes: [], frameCount: 0
+ };
+ 
+ this.eliteAI = {
+ easy: { cognitiveSpeed: 1.8, precision: 0.7, aggression: 0.4 },
+ normal: { cognitiveSpeed: 2.3, precision: 0.85, aggression: 0.7 },
+ hard: { cognitiveSpeed: 3.0, precision: 0.95, aggression: 0.9 }
+ };
+ 
+ this.initializeAthletes();
+ this.setupControls();
+ this.startChampionshipRuntime();
+ }
+
+ initializeAthletes() {
+ this.eliteState.athletes = [
+ { 
+ x: 200, y: 200, vx: 0, vy: 0, speed: 5.5,
+ color: '#ff4444', role: 'player', 
+ boost: 1.0, shotTimer: 0, momentum: 1
+ },
+ { 
+ x: 600, y: 120, vx: 0, vy: 0, speed: 3.2,
+ color: '#4444ff', role: 'striker', 
+ formationTarget: {x: 650, y: 120}
+ },
+ { 
+ x: 550, y: 280, vx: 0, vy: 0, speed: 3.7,
+ color: '#6666ff', role: 'support', 
+ formationTarget: {x: 580, y: 250}
+ },
+ { 
+ x: 480, y: 180, vx: 0, vy: 0, speed: 2.8,
+ color: '#8888ff', role: 'defender', 
+ formationTarget: {x: 520, y: 200}
+ }
+ ];
+ 
+ this.ball = { 
+ x: 400, y: 200, vx: 0, vy: 0, spin: 0, 
+ lastHit: null, velocity: 0
+ };
+ }
+
+ setupControls() {
+ this.keys = {};
+ document.addEventListener('keydown', (e) => {
+ this.keys[e.code.toLowerCase()] = true;
+ if (e.code.toLowerCase() === 'space') this.resetChampionship();
+ });
+ document.addEventListener('keyup', (e) => this.keys[e.code.toLowerCase()] = false);
+ }
+
+ calculateEliteAI() {
+ const currentSettings = this.eliteAI[this.eliteState.difficulty];
+ const playerIn = this.ball.x < this.constants.FIELD_WIDTH / 2;
+ 
+ // Advanced ball trajectory prediction
+ function forecastTrajectory(steps) {
+ let pos = {x: this.ball.x, y: this.ball.y};
+ let vel = {x: this.ball.vx, y: this.ball.vy};
+ let decay = 0.985;
+ 
+ for (let i = 0; i < steps && (Math.abs(vel.x) + Math.abs(vel.y)) > 0.1; i++) {
+ pos.x += vel.x;
+ pos.y += vel.y;
+ vel.x *= decay;
+ vel.y *= decay;
+ 
+ if (pos.x <= this.constants.BALL_SIZE || pos.x >= this.constants.FIELD_WIDTH - this.constants.BALL_SIZE) vel.x = -vel.x;
+ if (pos.y <= this.constants.BALL_SIZE || pos.y >= this.constants.FIELD_HEIGHT - this.constants.BALL_SIZE) vel.y = -vel.y;
+ }
+ return pos;
+ }
+ 
+ const prediction = forecastTrajectory(currentSettings.cognitiveSpeed * 5);
+ 
+ // Elite positioning system
+ const positions = {
+ striker: {
+ intensity: currentSettings.aggression,
+ target: {x: Math.max(580, Math.min(700, prediction.x)), y: Math.max(80, Math.min(320, prediction.y))}
+ },
+ support: {
+ intensity: currentSettings.cognitiveSpeed * 0.7,
+ target: {x: Math.max(500, prediction.x - 40), y: prediction.y + Math.sin(Date.now() * 0.008) * 25}
+ },
+ defender: {
+ intensity: this.eliteState.difficulty === 'hard' ? currentSettings.cognitiveSpeed * 0.4 : currentSettings.cognitiveSpeed * 0.6,
+ target: {x: !playerIn ? 520 : Math.max(450, prediction.x - 100), y: Math.max(120, Math.min(280, prediction.y))}
+ }
+ };
+ 
+ return positions;
+ }
+
+ updateEliteAI() {
+ const positions = this.calculateEliteAI();
+ const currentSettings = this.eliteAI[this.eliteState.difficulty];
+ 
+ this.eliteState.athletes.slice(1).forEach((ai, index) => {
+ const role = ai.role;
+ const pos = positions[`${role.split('_')[1]}`];
+ const dx = pos.target.x - ai.x;
+ const dy = pos.target.y - ai.y;
+ const distance = Math.sqrt(dx * dx + dy *

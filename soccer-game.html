@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Soccer Game</title>
+    <style>
+        body {
+            margin: 0;
+            background: #0a4d0a;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        #gameContainer {
+            border: 2px solid white;
+            border-radius: 10px;
+        }
+        
+        #gameInfo {
+            color: white;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        #instructions {
+            color: #ccc;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameInfo">
+        <div>Score: <span id="score1">0</span> - <span id="score2">0</span></div>
+        <div>Time: <span id="timer">90:00</span></div>
+    </div>
+    
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+    </div>
+    
+    <div id="instructions">
+        Use WASD to move, Q/E to shoot/ball control. Arrow keys to control camera.
+    </div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game constants
+const FIELD_WIDTH = 800;
+const FIELD_HEIGHT = 400;
+const GOAL_WIDTH = 80;
+const GOAL_HEIGHT = 20;
+const PLAYER_SIZE = 15;
+const BALL_SIZE = 8;
+const FRICTION = 0.95;
+
+// Game state
+let score = {team1: 0, team2: 0};
+let gameTime = 90 * 60; // 90 minutes in seconds
+let gameRunning = true;
+
+// Ball
+const ball = {
+    x: FIELD_WIDTH / 2,
+    y: FIELD_HEIGHT / 2,
+    vx: 0,
+    vy: 0,
+    resting: true
+};
+
+// Players
+const player1 = {
+    x: FIELD_WIDTH / 4,
+    y: FIELD_HEIGHT / 2,
+    vx: 0,
+    vy: 0,
+    speed: 3,
+    color: '#ff0000',
+    team: 1
+};
+
+const player2 = {
+    x: 3 * FIELD_WIDTH / 4,
+    y: FIELD_HEIGHT / 2,
+    vx: 0,
+    vy: 0,
+    speed: 2.5,
+    color: '#0000ff',
+    team: 2,
+    ai: true
+};
+
+const players = [player1, player2];
+
+// Input handling
+const keys = {};
+document.addEventListener('keydown', (e) => {
+    keys[e.key.toLowerCase()] = true;
+    e.preventDefault();
+});
+
+document.addEventListener('keyup', (e) => {
+    keys[e.key.toLowerCase()] = false;
+    e.preventDefault();
+});
+
+function updatePlayerMovement() {
+    // Player 1 controls
+    if (keys['w']) player1.vy = -player1.speed;
+    else if (keys['s']) player1.vy = player1.speed;
+    else player1.vy = 0;
+    
+    if (keys['a']) player1.vx = -player1.speed;
+    else if (keys['d']) player1.vx = player1.speed;
+    else player1.vx = 0;
+    
+    // Boundary collision for player1
+    player1.x += player1.vx;
+    player1.y += player1.vy;
+    
+    player1.x = Math.max(PLAYER_SIZE, Math.min(FIELD_WIDTH - PLAYER_SIZE, player1.x));
+    player1.y = Math.max(PLAYER_SIZE, Math.min(FIELD_HEIGHT - PLAYER_SIZE, player1.y));
+    
+    // AI for player2
+    if (player2.ai) {
+        const dx = ball.x - player2.x;
+        const dy = ball.y - player2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 50) {
+            // Move towards ball
+            player2.vx = (dx / distance) * player2.speed * 0.8;
+            player2.vy = (dy / distance) * player2.speed * 0.8;
+        } else {
+            // Move towards goal or defend
+            const targetX = ball.x > FIELD_WIDTH / 2 ? FIELD_WIDTH - 50 : 50;
+            const targetY = ball.y > FIELD_HEIGHT / 2 ? FIELD_HEIGHT - 50 : 50;
+            
+            player2.vx = Math.sign(targetX - player2.x) * player2.speed * 0.5;
+            player2.vy = Math.sign(targetY - player2.y) * player2.speed * 0.5;
+        }
+        
+        player2.x += player2.vx;
+        player2.y += player2.vy;
+        
+        // Boundary collision for player2
+        player2.x = Math.max(PLAYER_SIZE, Math.min(FIELD_WIDTH - PLAYER_SIZE, player2.x));
+        player2.y = Math.max(PLAYER_SIZE, Math.min(FIELD_HEIGHT - PLAYER_SIZE, player2.y));
+    }
+}
+
+function updateBallPhysics() {
+    // Apply friction
+    ball.vx *= FRICTION;
+    ball.vy *= FRICTION;
+    
+    // Move ball
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+    
+    // Ball collision with boundaries
+    if (ball.x - BALL_SIZE < 0 || ball.x + BALL_SIZE > FIELD_WIDTH) {
+        ball.vx = -ball.vx;
+        ball.x = Math.max(BALL_SIZE, Math.min(FIELD_WIDTH - BALL_SIZE, ball.x));
+    }
+    
+    if (ball.y - BALL_SIZE < 0 || ball.y + BALL_SIZE > FIELD_HEIGHT) {
+        ball.vy = -ball.vy;
+        ball.y = Math.max(BALL_SIZE, Math.min(FIELD_HEIGHT - BALL_SIZE, ball.y));
+    }
+    
+    // Check goals
+    // Left goal (Team 2 scores)
+    if (ball.x - BALL_SIZE <= 0 && 
+        ball.y >= (FIELD_HEIGHT - GOAL_WIDTH) / 2 && 
+        ball.y <= (FIELD_HEIGHT + GOAL_WIDTH) / 2) {
+        score.team2++;
+        resetBall();
+    }
+    
+    // Right goal (Team 1 scores)
+    if (ball.x + BALL_SIZE >= FIELD_WIDTH && 
+        ball.y >= (FIELD_HEIGHT - GOAL_WIDTH) / 2 && 
+        ball.y <= (FIELD_HEIGHT + GOAL_WIDTH) / 2) {
+        score.team1++;
+        resetBall();
+    }
+    
+    // Player collision with ball
+    players.forEach(player => {
+        const dx = ball.x - player.x;
+        const dy = ball.y - player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < PLAYER_SIZE + BALL_SIZE) {
+            const angle = Math.atan2(dy, dx);
+            const force = 3;
+            
+            if (keys['q'] && player === player1) {
+                // Strong shot
+                ball.vx = Math.cos(angle) * force * 2;
+                ball.vy = Math.sin(angle) * force * 2;
+            } else if (keys['e'] && player === player1) {
+                // Gentle ball control
+                ball.vx = Math.cos(angle) * force * 0.5;
+                ball.vy = Math.sin(angle) * force * 0.5;
+            } else if (player === player2 && distance < PLAYER_SIZE + BALL_SIZE) {
+                // AI takes shot
+                ball.vx = Math.cos(angle) * force * 1.2;
+                ball.vy = Math.sin(angle) * force * 1.2;
+            }
+        }
+    });
+}
+
+function resetBall() {
+    ball.x = FIELD_WIDTH / 2;
+    ball.y = FIELD_HEIGHT / 2;
+    ball.vx = 0;
+    ball.vy = 0;
+    
+    player1.x = FIELD_WIDTH / 4;
+    player1.y = FIELD_HEIGHT / 2;
+    
+    player2.x = 3 * FIELD_WIDTH / 4;
+    player2.y = FIELD_HEIGHT / 2;
+}
+
+function draw() {
+    // Clear field
+    ctx.fillStyle = '#4CAF50';
+    ctx.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+    
+    // Field markings
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    
+    // Center circle
+    ctx.beginPath();
+    ctx.arc(FIELD_WIDTH/2, FIELD_HEIGHT/2, 50, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Center line
+    ctx.beginPath();
+    ctx.moveTo(FIELD_WIDTH/2, 0);
+    ctx.lineTo(FIELD_WIDTH/2, FIELD_HEIGHT);
+    ctx.stroke();
+    
+    // Goals
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    // Left goal
+    ctx.fillRect(0, (FIELD_HEIGHT - GOAL_WIDTH)/2, 10, GOAL_WIDTH);
+    // Right goal
+    ctx.fillRect(FIELD_WIDTH - 10, (FIELD_HEIGHT - GOAL_WIDTH)/2, 10, GOAL_WIDTH);
+    
+    // Players
+    players.forEach(player => {
+        ctx.fillStyle = player.color;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, PLAYER_SIZE, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    
+    // Ball
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, BALL_SIZE, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function updateTimer() {
+    if (gameRunning && gameTime > 0) {
+        gameTime--;
+        const minutes = Math.floor(gameTime / 60);
+        const seconds = gameTime % 60;
+        document.getElementById('timer').textContent = 
+            `${minutes}:${seconds.toString().pad
