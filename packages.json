@@ -1,0 +1,39 @@
+{
+  "name": "soccer-championship-elite",
+  "version": "1.0.0",
+  "description": "Elite 2D soccer game with strategic AI formation system",
+  "main": "masterpiece-soccer.html",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "serve": "live-server --port=5000",
+    "test": "ws-server"
+  },
+  "keywords": ["soccer", "game", "ai", "formation", "championship"],
+  "author": "Elite Soccer Championship",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^22.0.0",
+    "electron-builder": "^23.0.0",
+    "live-server": "^1.2.2"
+  },
+  "build": {
+    "appId": "com.elite.soccer.championship",
+    "productName": "Elite Soccer Championship 2026",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "*",
+      "!node_modules/**/*",
+      "!.git/**/*"
+    ],
+    "mac": {
+      "icon": "icon.icns"
+    },
+    "win": {
+      "icon": "icon.ico"
+    }
+  }
+}
